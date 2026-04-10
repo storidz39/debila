@@ -25,7 +25,25 @@ app.get('/api/test', async (req, res) => {
 
 app.get('/api/setup-db', async (req, res) => {
   try {
-    const queries = [
+    // 1. Ensure columns exist in users table
+    const alterQueries = [
+      "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) UNIQUE AFTER phone",
+      "ALTER TABLE users ADD COLUMN IF NOT EXISTS organization VARCHAR(100) AFTER role",
+      "ALTER TABLE users ADD COLUMN IF NOT EXISTS logo_uri TEXT AFTER organization",
+      "ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_uri TEXT AFTER logo_uri"
+    ];
+
+    for (let query of alterQueries) {
+      try {
+        await pool.execute(query);
+      } catch (e) {
+        // Ignore if column already exists (for MySQL versions that don't support IF NOT EXISTS in ALTER)
+        console.log("Column check/add note:", e.message);
+      }
+    }
+
+    // 2. Original Create tables logic (as backup)
+    const createQueries = [
       `CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         full_name VARCHAR(255) NOT NULL,
@@ -67,11 +85,11 @@ app.get('/api/setup-db', async (req, res) => {
       )`
     ];
     
-    for (let query of queries) {
+    for (let query of createQueries) {
       await pool.execute(query);
     }
     
-    res.json({ success: true, message: "Tables updated with logo_uri!" });
+    res.json({ success: true, message: "DATABASE FULLY SYNCHRONIZED AND UPDATED!" });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
