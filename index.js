@@ -99,6 +99,15 @@ app.get('/api/setup-db', async (req, res) => {
   }
 });
 
+app.get('/api/debug-depts', async (req, res) => {
+  try {
+    const [rows] = await pool.execute("SELECT id, full_name, username, role, organization FROM users WHERE role = 'department'");
+    res.json({ success: true, count: rows.length, departments: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // --- Authentication ---
 app.post('/api/auth/register', async (req, res) => {
   const { phone, password, full_name, username, email, role, organization, logo_uri, cover_uri } = req.body;
