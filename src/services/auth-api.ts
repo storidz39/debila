@@ -4,7 +4,8 @@ import { setStoredUser } from "./user-storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Standardizing for Node.js / Vercel
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "/api";
+const API_ROOT = process.env.EXPO_PUBLIC_API_BASE_URL || "";
+const API_BASE_URL = API_ROOT.endsWith("/api") ? API_ROOT : `${API_ROOT}/api`;
 
 export type AuthResponse = {
   access_token: string;
