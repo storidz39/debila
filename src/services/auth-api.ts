@@ -51,6 +51,7 @@ export async function registerRequest(
   email?: string,
   role?: string,
   organization?: string,
+  logo_uri?: string,
   cover_uri?: string
 ): Promise<AuthResponse> {
   try {
@@ -65,6 +66,7 @@ export async function registerRequest(
         email: email?.trim(),
         role: role || "citizen",
         organization: organization || null,
+        logo_uri: logo_uri || null,
         cover_uri: cover_uri || null
       }),
     });

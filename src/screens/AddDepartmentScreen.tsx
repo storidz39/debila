@@ -1,5 +1,5 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Alert,
   Pressable,
@@ -17,7 +17,6 @@ import { colors, spacing, radius, shadows } from "../theme";
 import * as ImagePicker from "expo-image-picker";
 import { getDepartmentsFromApi, updateDepartmentApi, deleteDepartmentApi } from "../services/api";
 import { registerRequest } from "../services/auth-api";
-import { useEffect } from "react";
 
 export function AddDepartmentScreen() {
   const navigation = useNavigation();
@@ -35,12 +34,12 @@ export function AddDepartmentScreen() {
   useEffect(() => {
     if (isEditing) {
       getDepartmentsFromApi().then(deps => {
-        const d = deps.find(x => x.id === departmentId);
+        const d = deps.find(x => String(x.id) === String(departmentId));
         if (d) {
-          setDeptName(d.name);
-          setUsername(d.username);
-          setPassword(""); // Don't show password for security
-          setLogoUri(null); // Logo handling can be improved with URL
+          setDeptName(d.name || d.organization || "");
+          setUsername(d.username || "");
+          setPassword(""); // Security: don't show password
+          setLogoUri(d.logo_uri || null);
           setCoverUri(d.cover_uri || null);
         }
       });
@@ -48,49 +47,39 @@ export function AddDepartmentScreen() {
   }, [departmentId, isEditing]);
 
   const handlePickLogo = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert("عذراً", "نحتاج إلى صلاحية الوصول للصور لإضافة شعار المصلحة.");
-      return;
-    }
-
-    const pickerResult = await ImagePicker.launchImageLibraryAsync({
+    const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true
     });
 
-    if (!pickerResult.canceled && pickerResult.assets.length > 0) {
-      setLogoUri(pickerResult.assets[0].uri);
+    if (!res.canceled && res.assets.length > 0) {
+      const asset = res.assets[0];
+      setLogoUri(asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri);
     }
   };
 
   const handlePickCover = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert("عذراً", "نحتاج إلى صلاحية الوصول للصور لإضافة خلفية المصلحة.");
-      return;
-    }
-
-    const pickerResult = await ImagePicker.launchImageLibraryAsync({
+    const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.8,
+      base64: true
     });
 
-    if (!pickerResult.canceled && pickerResult.assets.length > 0) {
-      setCoverUri(pickerResult.assets[0].uri);
+    if (!res.canceled && res.assets.length > 0) {
+      const asset = res.assets[0];
+      setCoverUri(asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri);
     }
   };
 
   const handleCreate = async () => {
     if (!deptName.trim() || !username.trim() || (!isEditing && password.length < 6)) {
-      if (Platform.OS === 'web') window.alert("تنبيه: يرجى ملء كافة البيانات الرئيسية، ويجب أن تكون كلمة المرور 6 رموز على الأقل.");
-      else Alert.alert("تنبيه", "يرجى ملء كافة البيانات الرئيسية، ويجب أن تكون كلمة المرور 6 رموز على الأقل.");
+      if (Platform.OS === 'web') window.alert("تنبيه: يرجى ملء كافة البيانات الرئيسية.");
+      else Alert.alert("تنبيه", "يرجى ملء كافة البيانات الرئيسية.");
       return;
     }
 
@@ -102,19 +91,21 @@ export function AddDepartmentScreen() {
           username: username.trim(),
           password: password.trim() || undefined,
           organization: deptName.trim(),
-          cover_uri: coverUri || "",
+          logo_uri: logoUri,
+          cover_uri: coverUri,
         });
         if (Platform.OS === "web") window.alert("تم التعديل بنجاح.");
         else Alert.alert("نجاح", "تم التعديل بنجاح.");
       } else {
         await registerRequest(
-          username.trim(), // Using username as id/login
+          username.trim(), 
           password.trim(),
           deptName.trim(),
           username.trim(),
-          "", // email
+          "", 
           "department",
           deptName.trim(),
+          logoUri || "",
           coverUri || ""
         );
         if (Platform.OS === "web") window.alert("تم إضافة المصلحة بنجاح.");
@@ -122,8 +113,8 @@ export function AddDepartmentScreen() {
       }
       navigation.goBack();
     } catch (e: any) {
-      if (Platform.OS === "web") window.alert(e.message || "خطأ في الحفظ.");
-      else Alert.alert("خطأ", e.message || "فشل في الحفظ.");
+      if (Platform.OS === "web") window.alert("خطأ في الاتصال بالسيرفر.");
+      else Alert.alert("خطأ", "فشل في الحفظ.");
     } finally {
       setBusy(false);
     }
@@ -131,16 +122,14 @@ export function AddDepartmentScreen() {
 
   const handleDelete = async () => {
     if (Platform.OS === "web") {
-      const confirm = window.confirm("هل أنت متأكد من مسح المصلحة كلياً؟");
-      if (!confirm) return;
+      if (!window.confirm("هل أنت متأكد من مسح المصلحة؟")) return;
       await deleteDepartmentApi(departmentId);
       navigation.goBack();
       return;
     }
-
-    Alert.alert("تأكيد الحذف", "هل أنت متأكد من مسح المصلحة كلياً؟", [
+    Alert.alert("تأكيد الحذف", "هل أنت متأكد من مسح المصلحة؟", [
       { text: "إلغاء", style: "cancel" },
-      { text: "نعم، احذف", style: "destructive", onPress: async () => {
+      { text: "نعم", style: "destructive", onPress: async () => {
         await deleteDepartmentApi(departmentId);
         navigation.goBack();
       }}
@@ -148,246 +137,73 @@ export function AddDepartmentScreen() {
   };
 
   return (
-    <ScrollView 
-      contentContainerStyle={styles.scroll} 
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={{ alignSelf: "flex-end", padding: 8 }}>
+        <Pressable onPress={() => navigation.goBack()} style={{ alignSelf: "flex-end" }}>
           <Ionicons name="arrow-back-outline" size={24} color={colors.primary} />
         </Pressable>
-        <Text style={styles.title}>{isEditing ? "تعديل بيانات المصلحة" : "إضافة مصلحة حكومية"}</Text>
-        <Text style={styles.subtitle}>
-          {isEditing ? "تحديث بيانات وصلاحيات دخول الهيئة" : "إعداد حساب جديد لهيئة أو إدارة للإشراف على البلاغات الخاصة بها"}
-        </Text>
+        <Text style={styles.title}>{isEditing ? "تعديل المصلحة" : "إضافة مصلحة"}</Text>
       </View>
 
       <View style={styles.formContainer}>
         {/* Logo Picker */}
         <View style={styles.logoSection}>
-          <Text style={styles.label}>شعار المصلحة (Logo)</Text>
+          <Text style={styles.label}>شعار المصلحة</Text>
           <Pressable style={styles.logoPicker} onPress={handlePickLogo}>
             {logoUri ? (
               <Image source={{ uri: logoUri }} style={styles.logoImage} />
             ) : (
-              <View style={styles.logoPlaceholder}>
-                <Ionicons name="images-outline" size={32} color={colors.muted} />
-                <Text style={styles.logoPlaceholderText}>اضغط لاختيار صورة الشعار</Text>
-              </View>
+              <Ionicons name="images-outline" size={32} color={colors.muted} />
             )}
           </Pressable>
         </View>
 
-        {/* Cover Picker */}
-        <View style={styles.logoSection}>
-          <Text style={styles.label}>صورة الغلاف (الخلفية الرسمية)</Text>
-          <Pressable style={styles.coverPicker} onPress={handlePickCover}>
-            {coverUri ? (
-              <Image source={{ uri: coverUri }} style={styles.logoImage} />
-            ) : (
-              <View style={styles.logoPlaceholder}>
-                <Ionicons name="image-outline" size={32} color={colors.muted} />
-                <Text style={styles.logoPlaceholderText}>اختيار خلفية مخصصة للوحة تحكم المصلحة</Text>
-              </View>
-            )}
+        <Text style={styles.label}>اسم المصلحة</Text>
+        <TextInput style={styles.input} value={deptName} onChangeText={setDeptName} textAlign="right" />
+
+        <Text style={styles.label}>اسم الدخول (Username)</Text>
+        <TextInput 
+            style={styles.input} 
+            value={username} 
+            onChangeText={setUsername} 
+            textAlign="right" 
+            autoCapitalize="none"
+        />
+
+        <Text style={styles.label}>كلمة المرور</Text>
+        <TextInput 
+            style={styles.input} 
+            secureTextEntry 
+            value={password} 
+            onChangeText={setPassword} 
+            textAlign="right" 
+            placeholder={isEditing ? "اترك فارغاً لعدم التغيير" : ""}
+        />
+
+        <Pressable style={[styles.submitBtn, busy && { opacity: 0.6 }]} onPress={handleCreate} disabled={busy}>
+          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>{isEditing ? "تحديث" : "حفظ"}</Text>}
+        </Pressable>
+
+        {isEditing && (
+          <Pressable style={[styles.submitBtn, { backgroundColor: colors.danger, marginTop: spacing.md }]} onPress={handleDelete}>
+            <Text style={styles.submitText}>حذف المصلحة</Text>
           </Pressable>
-        </View>
-
-        {/* Form Inputs */}
-        <View style={styles.inputWrapper}>
-          <Text style={styles.label}>اسم المصلحة</Text>
-          <View style={styles.inputContainer}>
-            <Ionicons name="business-outline" size={20} color={colors.muted} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="مثال: مديرية الأشغال العمومية"
-              placeholderTextColor={colors.muted}
-              value={deptName}
-              onChangeText={setDeptName}
-              textAlign="right"
-            />
-          </View>
-        </View>
-
-        <View style={styles.inputWrapper}>
-          <Text style={styles.label}>اسم المستخدم</Text>
-          <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={20} color={colors.muted} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="اسم حساب الولوج (مثال: admin_tp)"
-              placeholderTextColor={colors.muted}
-              autoCapitalize="none"
-              value={username}
-              onChangeText={setUsername}
-              textAlign="right"
-            />
-          </View>
-        </View>
-
-        <View style={styles.inputWrapper}>
-          <Text style={styles.label}>كلمة السر المؤقتة</Text>
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color={colors.muted} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="ستُعطى للمصلحة للولوج لأول مرة"
-              placeholderTextColor={colors.muted}
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              textAlign="right"
-            />
-          </View>
-        </View>
-
-        <View style={{ marginTop: spacing.lg }}>
-          <Pressable
-            style={[styles.primaryButton, busy && styles.disabled]}
-            onPress={handleCreate}
-            disabled={busy}
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.primaryButtonText}>{isEditing ? "تحديث التغييرات" : "حفظ وإنشاء الحساب"}</Text>
-            )}
-          </Pressable>
-
-          {isEditing && (
-            <Pressable
-              style={[styles.primaryButton, { backgroundColor: colors.danger, marginTop: spacing.md }]}
-              onPress={handleDelete}
-              disabled={busy}
-            >
-              <Text style={styles.primaryButtonText}>حذف المصلحة</Text>
-            </Pressable>
-          )}
-        </View>
+        )}
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { 
-    padding: spacing.xl, 
-    paddingTop: 30,
-    backgroundColor: colors.background,
-    minHeight: "100%",
-  },
-  header: {
-    marginBottom: spacing.xl,
-  },
-  title: { 
-    fontSize: 26, 
-    fontWeight: "800", 
-    color: colors.primary, 
-    textAlign: "right",
-    marginBottom: 4,
-  },
-  subtitle: { 
-    fontSize: 14, 
-    color: colors.textSecondary, 
-    textAlign: "right",
-    lineHeight: 22,
-  },
-  formContainer: {
-    backgroundColor: colors.surface,
-    padding: spacing.xl,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.sm,
-  },
-  logoSection: {
-    marginBottom: spacing.xl,
-    alignItems: "flex-end", // Align right
-  },
-  logoPicker: {
-    width: 100,
-    height: 100,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: spacing.sm,
-    overflow: "hidden",
-  },
-  coverPicker: {
-    width: "100%",
-    height: 120,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: spacing.sm,
-    overflow: "hidden",
-  },
-  logoPlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoPlaceholderText: {
-    fontSize: 10,
-    color: colors.muted,
-    textAlign: "center",
-    marginTop: 4,
-    paddingHorizontal: 4,
-  },
-  logoImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-  },
-  inputWrapper: {
-    marginBottom: spacing.md,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.textPrimary,
-    marginBottom: 8,
-    textAlign: "right",
-  },
-  inputContainer: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    height: 52,
-    paddingHorizontal: spacing.md,
-  },
-  inputIcon: {
-    marginLeft: 12,
-  },
-  input: {
-    flex: 1,
-    color: colors.textPrimary,
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  primaryButton: {
-    height: 54,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadows.md,
-  },
-  primaryButtonText: { 
-    color: colors.white, 
-    fontWeight: "700", 
-    fontSize: 16 
-  },
-  disabled: { 
-    opacity: 0.6 
-  },
+  scroll: { padding: spacing.xl, backgroundColor: colors.background, minHeight: "100%" },
+  header: { marginBottom: spacing.xl },
+  title: { fontSize: 24, fontWeight: "900", color: colors.primary, textAlign: "right" },
+  formContainer: { backgroundColor: colors.surface, padding: spacing.xl, borderRadius: radius.md, ...shadows.sm },
+  label: { fontSize: 14, fontWeight: "800", color: colors.textPrimary, marginBottom: 8, textAlign: "right" },
+  input: { backgroundColor: colors.background, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.lg, textAlign: "right" },
+  logoSection: { alignItems: "center", marginBottom: spacing.xl },
+  logoPicker: { width: 100, height: 100, borderRadius: radius.full, borderStyle: "dashed", borderWidth: 2, borderColor: colors.border, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  logoImage: { width: "100%", height: "100%" },
+  submitBtn: { height: 50, backgroundColor: colors.primary, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.lg },
+  submitText: { color: "#fff", fontWeight: "900", fontSize: 16 },
 });

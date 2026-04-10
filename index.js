@@ -25,28 +25,64 @@ app.get('/api/test', async (req, res) => {
 
 app.get('/api/setup-db', async (req, res) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const schemaPath = path.join(process.cwd(), 'database', 'schema.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf8');
-    const queries = schema.split(';').filter(q => q.trim());
+    const queries = [
+      `CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        full_name VARCHAR(255) NOT NULL,
+        phone VARCHAR(20) UNIQUE NOT NULL,
+        username VARCHAR(50) UNIQUE,
+        email VARCHAR(100),
+        password VARCHAR(255) NOT NULL,
+        role ENUM('citizen', 'department', 'admin') DEFAULT 'citizen',
+        organization VARCHAR(100),
+        logo_uri TEXT,
+        cover_uri TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS complaints (
+        id VARCHAR(50) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        location_text TEXT NOT NULL,
+        lat DECIMAL(10, 8),
+        lng DECIMAL(11, 8),
+        category VARCHAR(100),
+        status ENUM('submitted', 'under_review', 'in_progress', 'resolved') DEFAULT 'submitted',
+        reporter_id INT,
+        assigned_dept VARCHAR(100),
+        media_urls JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE SET NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS messages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        complaint_id VARCHAR(50),
+        sender_id INT,
+        sender_name VARCHAR(255),
+        sender_role VARCHAR(50),
+        text TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (complaint_id) REFERENCES complaints(id) ON DELETE CASCADE,
+        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE SET NULL
+      )`
+    ];
     
     for (let query of queries) {
       await pool.execute(query);
     }
     
-    res.json({ success: true, message: "All tables created successfully in Aiven MySQL!" });
+    res.json({ success: true, message: "Tables updated with logo_uri!" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Setup failed", error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // --- Authentication ---
 app.post('/api/auth/register', async (req, res) => {
-  const { phone, password, full_name, username, email, role, organization, cover_uri } = req.body;
+  const { phone, password, full_name, username, email, role, organization, logo_uri, cover_uri } = req.body;
   try {
     const [rows] = await pool.execute(
-      'INSERT INTO users (phone, password, full_name, username, email, role, organization, cover_uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO users (phone, password, full_name, username, email, role, organization, logo_uri, cover_uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         phone.trim(), 
         password, 
@@ -55,6 +91,7 @@ app.post('/api/auth/register', async (req, res) => {
         email?.trim() || null, 
         role || 'citizen',
         organization || null,
+        logo_uri || null,
         cover_uri || null
       ]
     );
@@ -75,7 +112,7 @@ app.post('/api/auth/register', async (req, res) => {
 app.get('/api/admin/departments', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      "SELECT id, full_name as name, username, role, organization, cover_uri FROM users WHERE role = 'department'"
+      "SELECT id, full_name as name, username, role, organization, logo_uri, cover_uri FROM users WHERE role = 'department'"
     );
     res.json({ success: true, data: { items: rows } });
   } catch (error) {
@@ -86,10 +123,10 @@ app.get('/api/admin/departments', async (req, res) => {
 
 app.patch('/api/admin/departments/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, username, password, organization, cover_uri } = req.body;
+  const { name, username, password, organization, logo_uri, cover_uri } = req.body;
   try {
-    let query = 'UPDATE users SET full_name = ?, username = ?, organization = ?, cover_uri = ?';
-    let params = [name, username, organization, cover_uri];
+    let query = 'UPDATE users SET full_name = ?, username = ?, organization = ?, logo_uri = ?, cover_uri = ?';
+    let params = [name, username, organization, logo_uri, cover_uri];
     
     if (password) {
       query += ', password = ?';
@@ -122,14 +159,20 @@ app.post('/api/auth/login', async (req, res) => {
   const { phone, password } = req.body;
   try {
     const [users] = await pool.execute(
-      'SELECT * FROM users WHERE (phone = ? OR username = ?) AND password = ?',
-      [phone, phone, password]
+      'SELECT id, phone, full_name, username, role, organization, logo_uri, cover_uri, password FROM users WHERE (phone = ? OR username = ?)',
+      [phone, phone]
     );
-    if (users.length === 0) {
-      return res.status(401).json({ success: false, message: 'بيانات الدخول غير صحيحة' });
+
+    if (users.length === 0 || users[0].password !== password) {
+      return res.status(401).json({ success: false, message: "فشل الدخول، يرجى التأكد من البيانات." });
     }
+
     const user = users[0];
     const token = jwt.sign({ id: user.id, phone: user.phone, role: user.role }, JWT_SECRET);
+    
+    // Remove password before sending
+    delete user.password;
+
     res.json({
       success: true,
       access_token: token,
@@ -139,7 +182,9 @@ app.post('/api/auth/login', async (req, res) => {
         full_name: user.full_name,
         username: user.username,
         role: user.role,
-        organization: user.organization
+        organization: user.organization,
+        logoUri: user.logo_uri,
+        coverUri: user.cover_uri
       }
     });
   } catch (error) {

@@ -139,7 +139,14 @@ export async function updateDepartmentApi(id: string, payload: any): Promise<voi
   await fetch(`${API_BASE_URL}/admin/departments/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      name: payload.name,
+      username: payload.username,
+      password: payload.password,
+      organization: payload.organization,
+      logo_uri: payload.logo_uri,
+      cover_uri: payload.cover_uri
+    }),
   });
 }
 
