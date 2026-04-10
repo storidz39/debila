@@ -25,6 +25,7 @@ export function AdminScreen() {
     useCallback(() => {
       let active = true;
       getDepartmentsFromApi().then(data => {
+        console.log("DEBUG: Departments from Cloud:", data.length);
         if (active) setDepts(data);
       });
       return () => { active = false; };
@@ -58,7 +59,7 @@ export function AdminScreen() {
         <View style={[styles.header, isMobile && { flexDirection: "column", alignItems: "flex-start", gap: spacing.md }]}>
           <View style={styles.headerText}>
             <Text style={styles.title}>
-              {user?.role === "department" ? `إدارة: ${user.organization}` : "مركز الرقابة الإدارية"}
+              {user?.role === "department" ? `إدارة: ${user.organization}` : "مركز الرقابة الإدارية (سحابي v2.0)"}
             </Text>
             <Text style={styles.subtitle}>
               {user?.role === "department" ? "معالجة الطلبات الموكلة للمصلحة" : "المتابعة المركزية لكافة إدارات ومصالح الولاية"}

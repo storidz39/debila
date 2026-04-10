@@ -128,7 +128,10 @@ export async function uploadComplaintImage(localUri: string): Promise<string | n
 
 export async function getDepartmentsFromApi(): Promise<any[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/departments`);
+    const token = await getStoredToken();
+    const res = await fetch(`${API_BASE_URL}/admin/departments`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
     if (!res.ok) throw new Error("API error");
     const json = await res.json();
     return (json?.data?.items ?? []) as any[];
@@ -138,9 +141,13 @@ export async function getDepartmentsFromApi(): Promise<any[]> {
 }
 
 export async function createDepartmentApi(payload: any): Promise<void> {
+  const token = await getStoredToken();
   const res = await fetch(`${API_BASE_URL}/admin/departments`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -150,9 +157,13 @@ export async function createDepartmentApi(payload: any): Promise<void> {
 }
 
 export async function updateDepartmentApi(id: string, payload: any): Promise<void> {
+  const token = await getStoredToken();
   await fetch(`${API_BASE_URL}/admin/departments/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
     body: JSON.stringify({
       name: payload.name,
       username: payload.username,
