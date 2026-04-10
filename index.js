@@ -104,9 +104,16 @@ app.get('/api/setup-db', async (req, res) => {
       await pool.execute(query);
     }
     
+    // 3. Ensure Default Admin User exists
+    await pool.execute(`
+      INSERT INTO users (phone, password, full_name, role)
+      VALUES ('admin', 'admin123', 'مدير النظام', 'admin')
+      ON DUPLICATE KEY UPDATE password = 'admin123', role = 'admin'
+    `);
+    
     res.json({ 
       success: true, 
-      message: updates.length > 0 ? `Database updated with: ${updates.join(', ')}` : "Database was already up to date!" 
+      message: updates.length > 0 ? `Database updated with: ${updates.join(', ')} (Admin Reset to admin/admin123)` : "Database synchronized (Admin Reset to admin/admin123)" 
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
