@@ -188,15 +188,33 @@ app.delete('/api/admin/departments/:id', async (req, res) => {
 
 app.post('/api/admin/departments', async (req, res) => {
   const { phone, password, full_name, username, organization, logo_uri, cover_uri } = req.body;
+  
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: "Username and password are required" });
+  }
+
   try {
-    await pool.execute(
-      'INSERT INTO users (phone, password, full_name, username, role, organization, logo_uri, cover_uri) VALUES (?, ?, ?, ?, "department", ?, ?, ?)',
-      [phone.trim(), password, full_name.trim(), username.trim(), organization.trim(), logo_uri || null, cover_uri || null]
-    );
-    res.status(201).json({ success: true, message: "Department created" });
+    // Ensuring we provide values for ALL columns to avoid any strict mode issues
+    const query = `
+      INSERT INTO users (phone, password, full_name, username, email, role, organization, logo_uri, cover_uri) 
+      VALUES (?, ?, ?, ?, ?, 'department', ?, ?, ?)
+    `;
+    const params = [
+      phone || username, 
+      password, 
+      full_name || organization, 
+      username, 
+      null, // email
+      organization, 
+      logo_uri || null, 
+      cover_uri || null
+    ];
+
+    await pool.execute(query, params);
+    res.status(201).json({ success: true, message: "Department created successfully in Cloud" });
   } catch (error) {
-    console.error(error);
-    res.status(400).json({ success: false, message: 'خطأ في إنشاء الهيئة: ' + error.message });
+    console.error("DB Error:", error);
+    res.status(500).json({ success: false, message: 'خطأ في قاعدة البيانات: ' + error.message });
   }
 });
 
