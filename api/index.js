@@ -155,6 +155,20 @@ app.delete('/api/admin/departments/:id', async (req, res) => {
   }
 });
 
+app.post('/api/admin/departments', async (req, res) => {
+  const { phone, password, full_name, username, organization, logo_uri, cover_uri } = req.body;
+  try {
+    await pool.execute(
+      'INSERT INTO users (phone, password, full_name, username, role, organization, logo_uri, cover_uri) VALUES (?, ?, ?, ?, "department", ?, ?, ?)',
+      [phone.trim(), password, full_name.trim(), username.trim(), organization.trim(), logo_uri || null, cover_uri || null]
+    );
+    res.status(201).json({ success: true, message: "Department created" });
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ success: false, message: 'خطأ في إنشاء الهيئة: ' + error.message });
+  }
+});
+
 app.post('/api/auth/login', async (req, res) => {
   const { phone, password } = req.body;
   try {

@@ -15,8 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, shadows } from "../theme";
 import * as ImagePicker from "expo-image-picker";
-import { getDepartmentsFromApi, updateDepartmentApi, deleteDepartmentApi } from "../services/api";
-import { registerRequest } from "../services/auth-api";
+import { getDepartmentsFromApi, updateDepartmentApi, deleteDepartmentApi, createDepartmentApi } from "../services/api";
 
 export function AddDepartmentScreen() {
   const navigation = useNavigation();
@@ -97,17 +96,15 @@ export function AddDepartmentScreen() {
         if (Platform.OS === "web") window.alert("تم التعديل بنجاح.");
         else Alert.alert("نجاح", "تم التعديل بنجاح.");
       } else {
-        await registerRequest(
-          username.trim(), 
-          password.trim(),
-          deptName.trim(),
-          username.trim(),
-          "", 
-          "department",
-          deptName.trim(),
-          logoUri || "",
-          coverUri || ""
-        );
+        await createDepartmentApi({
+          phone: username.trim(), // Using username as login/phone
+          password: password.trim(),
+          full_name: deptName.trim(),
+          username: username.trim(),
+          organization: deptName.trim(),
+          logo_uri: logoUri || "",
+          cover_uri: coverUri || ""
+        });
         if (Platform.OS === "web") window.alert("تم إضافة المصلحة بنجاح.");
         else Alert.alert("نجاح", "تم إضافة المصلحة بنجاح.");
       }

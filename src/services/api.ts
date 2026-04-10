@@ -135,6 +135,18 @@ export async function getDepartmentsFromApi(): Promise<any[]> {
   }
 }
 
+export async function createDepartmentApi(payload: any): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/admin/departments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const json = await res.json();
+    throw new Error(json.message || "فشل إنشاء الهيئة");
+  }
+}
+
 export async function updateDepartmentApi(id: string, payload: any): Promise<void> {
   await fetch(`${API_BASE_URL}/admin/departments/${id}`, {
     method: "PATCH",
