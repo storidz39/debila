@@ -5,7 +5,7 @@ const pool = mysql.createPool({
   host: "mysql-159b2565-zinou.i.aivencloud.com",
   port: 27815,
   user: "avnadmin",
-  password: "AVNS_I5yYt0o7M0oY7g6fWw8",
+  password: "AVNS_SSRRxBV-lPuie7w_FAI",
   database: "defaultdb",
   ssl: {
     rejectUnauthorized: false // Required for Aiven SSL
