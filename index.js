@@ -25,20 +25,21 @@ app.get('/api/test', async (req, res) => {
 
 app.get('/api/setup-db', async (req, res) => {
   try {
-    // 1. Ensure columns exist in users table
-    const alterQueries = [
-      "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) UNIQUE AFTER phone",
-      "ALTER TABLE users ADD COLUMN IF NOT EXISTS organization VARCHAR(100) AFTER role",
-      "ALTER TABLE users ADD COLUMN IF NOT EXISTS logo_uri TEXT AFTER organization",
-      "ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_uri TEXT AFTER logo_uri"
+    const [columns] = await pool.execute("SHOW COLUMNS FROM users");
+    const columnNames = columns.map(c => c.Field);
+    
+    const neededColumns = [
+      { name: 'username', query: "ALTER TABLE users ADD COLUMN username VARCHAR(50) UNIQUE AFTER phone" },
+      { name: 'organization', query: "ALTER TABLE users ADD COLUMN organization VARCHAR(100) AFTER role" },
+      { name: 'logo_uri', query: "ALTER TABLE users ADD COLUMN logo_uri TEXT AFTER organization" },
+      { name: 'cover_uri', query: "ALTER TABLE users ADD COLUMN cover_uri TEXT AFTER logo_uri" }
     ];
 
-    for (let query of alterQueries) {
-      try {
-        await pool.execute(query);
-      } catch (e) {
-        // Ignore if column already exists (for MySQL versions that don't support IF NOT EXISTS in ALTER)
-        console.log("Column check/add note:", e.message);
+    let updates = [];
+    for (let col of neededColumns) {
+      if (!columnNames.includes(col.name)) {
+        await pool.execute(col.query);
+        updates.push(col.name);
       }
     }
 
@@ -89,7 +90,10 @@ app.get('/api/setup-db', async (req, res) => {
       await pool.execute(query);
     }
     
-    res.json({ success: true, message: "DATABASE FULLY SYNCHRONIZED AND UPDATED!" });
+    res.json({ 
+      success: true, 
+      message: updates.length > 0 ? `Database updated with: ${updates.join(', ')}` : "Database was already up to date!" 
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
