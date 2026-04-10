@@ -23,6 +23,24 @@ app.get('/api/test', async (req, res) => {
   }
 });
 
+app.get('/api/setup-db', async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const schemaPath = path.join(process.cwd(), 'database', 'schema.sql');
+    const schema = fs.readFileSync(schemaPath, 'utf8');
+    const queries = schema.split(';').filter(q => q.trim());
+    
+    for (let query of queries) {
+      await pool.execute(query);
+    }
+    
+    res.json({ success: true, message: "All tables created successfully in Aiven MySQL!" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Setup failed", error: error.message });
+  }
+});
+
 // --- Authentication ---
 app.post('/api/auth/register', async (req, res) => {
   const { phone, password, full_name, username, email, role } = req.body;
