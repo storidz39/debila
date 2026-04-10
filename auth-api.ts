@@ -3,9 +3,9 @@ import { setStoredToken } from "./token-storage";
 import { setStoredUser } from "./user-storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Standardizing for Node.js / Vercel
-const API_ROOT = process.env.EXPO_PUBLIC_API_BASE_URL || "";
-const API_BASE_URL = API_ROOT.endsWith("/api") ? API_ROOT : `${API_ROOT}/api`;
+// FORCED CLOUD MOD - Ensuring we always hit the production Vercel API
+const API_ROOT = "https://debila-inky.vercel.app";
+const API_BASE_URL = `${API_ROOT}/api`;
 
 export type AuthResponse = {
   access_token: string;
@@ -27,18 +27,7 @@ export async function loginRequest(phone: string, password: string): Promise<Aut
       return data;
     }
 
-    // Fallback to hardcoded admin for testing
-    if (phone === "admin" && password === "123456") {
-      const adminData: AuthResponse = {
-        access_token: "admin-token-123",
-        user: { id: "admin-uuid", phone: "admin", full_name: "مدير المنصة الشامل", role: "admin" }
-      };
-      await setStoredToken(adminData.access_token);
-      await setStoredUser(adminData.user);
-      return adminData;
-    }
-
-    throw new Error("خطأ في بيانات الدخول، يرجى التأكد من الهاتف وكلمة المرور.");
+    throw new Error("خطأ في بيانات الدخول، يرجى التأكد من الهاتف وكلمة المرور من السيرفر.");
   } catch (err: any) {
     throw err;
   }

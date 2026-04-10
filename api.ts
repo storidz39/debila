@@ -5,9 +5,9 @@ import { getStoredToken } from "./token-storage";
 import { getStoredUser } from "./user-storage";
 
 // Standardizing for Node.js / Vercel
-// Standardizing for Node.js / Vercel - Ensuring the /api prefix is handled correctly
-const API_ROOT = process.env.EXPO_PUBLIC_API_BASE_URL || "";
-const API_BASE_URL = API_ROOT.endsWith("/api") ? API_ROOT : `${API_ROOT}/api`;
+// FORCED CLOUD MOD - Ensuring we always hit the production Vercel API
+const API_ROOT = "https://debila-inky.vercel.app";
+const API_BASE_URL = `${API_ROOT}/api`;
 
 function generateId() {
   const n = Math.floor(Math.random() * 9000) + 1000;
