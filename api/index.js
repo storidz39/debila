@@ -9,6 +9,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'bader_secret_key_2026';
 app.use(cors());
 app.use(express.json());
 
+// --- JWT Middleware ---
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ success: false, message: "توكن مفقود" });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ success: false, message: "توكن غير صالح" });
+    req.user = user;
+    next();
+  });
+};
+
 // --- Health Check ---
 app.get('/api', (req, res) => {
   res.json({ success: true, message: "Bader Node.js API is running" });
@@ -140,7 +154,7 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // --- Admin Endpoints ---
-app.get('/api/admin/departments', async (req, res) => {
+app.get('/api/admin/departments', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.execute(
       "SELECT id, full_name as name, username, role, organization, logo_uri, cover_uri FROM users WHERE role = 'department'"
@@ -152,7 +166,7 @@ app.get('/api/admin/departments', async (req, res) => {
   }
 });
 
-app.patch('/api/admin/departments/:id', async (req, res) => {
+app.patch('/api/admin/departments/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { name, username, password, organization, logo_uri, cover_uri } = req.body;
   try {
@@ -175,7 +189,7 @@ app.patch('/api/admin/departments/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/admin/departments/:id', async (req, res) => {
+app.delete('/api/admin/departments/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
     await pool.execute('DELETE FROM users WHERE id = ? AND role = "department"', [id]);
@@ -186,7 +200,7 @@ app.delete('/api/admin/departments/:id', async (req, res) => {
   }
 });
 
-app.post('/api/admin/departments', async (req, res) => {
+app.post('/api/admin/departments', authenticateToken, async (req, res) => {
   const { phone, password, full_name, username, organization, logo_uri, cover_uri } = req.body;
   
   if (!username || !password) {
