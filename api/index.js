@@ -9,6 +9,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'bader_secret_key_2026';
 app.use(cors());
 app.use(express.json());
 
+// --- Auto-Initialize Admin (Safe Mode) ---
+(async () => {
+  try {
+    await pool.execute(`
+      INSERT INTO users (phone, password, full_name, role)
+      VALUES ('admin', 'admin123', 'مدير النظام', 'admin')
+      ON DUPLICATE KEY UPDATE password = 'admin123', role = 'admin'
+    `);
+    console.log("SUCCESS: Cloud Admin Verified");
+  } catch (err) {
+    console.error("CRITICAL: Cloud Admin Verification Failed", err.message);
+  }
+})();
+
 // --- JWT Middleware ---
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
