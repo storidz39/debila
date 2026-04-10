@@ -177,8 +177,8 @@ export function AddDepartmentScreen() {
             placeholder={isEditing ? "اترك فارغاً لعدم التغيير" : ""}
         />
 
-        <Pressable style={[styles.submitBtn, busy && { opacity: 0.6 }]} onPress={handleCreate} disabled={busy}>
-          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>{isEditing ? "تحديث" : "حفظ"}</Text>}
+        <Pressable style={[styles.submitBtn, { backgroundColor: colors.danger }, busy && { opacity: 0.6 }]} onPress={handleCreate} disabled={busy}>
+          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>{isEditing ? "تحديث سحابي" : "حفظ سحابي (Cloud Save)"}</Text>}
         </Pressable>
 
         {isEditing && (
