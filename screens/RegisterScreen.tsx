@@ -85,7 +85,7 @@ export function RegisterScreen() {
             resizeMode="contain"
           />
         </View>
-        <Text style={styles.title}>بوابة بادر الرقمية</Text>
+        <Text style={styles.title}>بوابة بادر الرقمية (v3.0-Depts)</Text>
         <Text style={styles.subtitle}>إنشاء حساب جديد في المنصة</Text>
       </View>
 
