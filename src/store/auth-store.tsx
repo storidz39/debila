@@ -10,7 +10,17 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   loading: boolean;
   login: (phone: string, password: string) => Promise<void>;
-  register: (phone: string, password: string, fullName: string, username?: string, email?: string) => Promise<void>;
+  register: (
+    phone: string, 
+    password: string, 
+    fullName: string, 
+    username?: string, 
+    email?: string,
+    role?: string,
+    organization?: string,
+    logo_uri?: string,
+    cover_uri?: string
+  ) => Promise<void>;
   updateUser: (updates: Partial<AuthUser>) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -52,8 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await setStoredUser(data.user);
   }, []);
 
-  const register = useCallback(async (phone: string, password: string, fullName: string, username?: string, email?: string) => {
-    const data = await registerRequest(phone, password, fullName, username, email);
+  const register = useCallback(async (
+    phone: string, 
+    password: string, 
+    fullName: string, 
+    username?: string, 
+    email?: string,
+    role?: string,
+    organization?: string,
+    logo_uri?: string,
+    cover_uri?: string
+  ) => {
+    const data = await registerRequest(phone, password, fullName, username, email, role, organization, logo_uri, cover_uri);
     setToken(data.access_token);
     setUser(data.user);
     await setStoredToken(data.access_token);

@@ -18,6 +18,7 @@ import { colors, spacing, radius, shadows } from "../theme";
 export function RegisterScreen() {
   const navigation = useNavigation();
   const { register } = useAuth();
+  const [role, setRole] = useState<"citizen" | "department">("citizen");
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -27,22 +28,39 @@ export function RegisterScreen() {
   const [errorText, setErrorText] = useState<string | null>(null);
 
   const handleRegister = async () => {
-    if (!fullName.trim() || !username.trim() || !phone.trim() || password.length < 6) {
+    // Basic validation
+    if (!fullName.trim() || !phone.trim() || password.length < 6) {
       Alert.alert("تنبيه", "يرجى إكمال جميع البيانات الأساسية واختيار كلمة مرور قوية (6 رموز على الأقل)");
       return;
     }
+    
+    // For departments, username is mandatory
+    if (role === "department" && !username.trim()) {
+      Alert.alert("تنبيه", "يرجى إدخال اسم المستخدم للمصلحة باللاتينية");
+      return;
+    }
+
     const phoneRegex = /^(05|06|07)\d{8}$/;
     if (!phoneRegex.test(phone.trim())) {
       Alert.alert("حدث خطأ", "رقم الهاتف غير صحيح. يجب أن يتكون من 10 أرقام ويبدأ بـ 05، 06، أو 07.");
       return;
     }
+
     setErrorText(null);
     setBusy(true);
     try {
-      await register(phone.trim(), password, fullName.trim(), username.trim(), email.trim());
-      Alert.alert("نجاح", "تم إنشاء حسابك بنجاح! يتم الآن توجيهك للمنصة.");
+      await register(
+        phone.trim(), 
+        password, 
+        fullName.trim(), 
+        role === "department" ? username.trim() : (username.trim() || undefined),
+        email.trim() || undefined,
+        role,
+        role === "department" ? fullName.trim() : undefined
+      );
+      Alert.alert("نجاح", `تم إنشاء حساب ${role === "citizen" ? "مواطن" : "مصلحة"} بنجاح! يتم الآن توجيهك للمنصة.`);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "فشل إنشاء الحساب الجديد. يرجى التأكد من توفر الجداول في Supabase.";
+      const msg = e instanceof Error ? e.message : "فشل إنشاء الحساب الجديد.";
       setErrorText(msg);
       Alert.alert("خطأ في التسجيل", msg);
     } finally {
@@ -67,18 +85,41 @@ export function RegisterScreen() {
             resizeMode="contain"
           />
         </View>
-        <Text style={styles.title}>إنشاء حساب المواطن</Text>
-        <Text style={styles.subtitle}>بوابة المواطن الرقمية الموحدة</Text>
+        <Text style={styles.title}>بوابة بادر الرقمية</Text>
+        <Text style={styles.subtitle}>إنشاء حساب جديد في المنصة</Text>
+      </View>
+
+      {/* Role Toggle */}
+      <View style={styles.roleToggleContainer}>
+        <Pressable 
+          onPress={() => setRole("citizen")}
+          style={[styles.roleTab, role === "citizen" && styles.activeRoleTab]}
+        >
+          <Ionicons name="person" size={20} color={role === "citizen" ? colors.white : colors.muted} />
+          <Text style={[styles.roleTabText, role === "citizen" && styles.activeRoleTabText]}>مواطن</Text>
+        </Pressable>
+        <Pressable 
+          onPress={() => setRole("department")}
+          style={[styles.roleTab, role === "department" && styles.activeRoleTab]}
+        >
+          <Ionicons name="business" size={20} color={role === "department" ? colors.white : colors.muted} />
+          <Text style={[styles.roleTabText, role === "department" && styles.activeRoleTabText]}>مصلحة إدارية</Text>
+        </Pressable>
       </View>
 
       <View style={styles.form}>
         <View style={styles.inputWrapper}>
-          <Text style={styles.label}>الاسم الكامل (كما في الهوية الوطنية)</Text>
+          <Text style={styles.label}>{role === "citizen" ? "الاسم الكامل (كما في الهوية)" : "اسم المصلحة / الهيئة الرسمية"}</Text>
           <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={18} color={fullName.length > 3 ? colors.primary : colors.muted} style={styles.inputIcon} />
+            <Ionicons 
+              name={role === "citizen" ? "person-outline" : "business-outline"} 
+              size={18} 
+              color={fullName.length > 3 ? colors.primary : colors.muted} 
+              style={styles.inputIcon} 
+            />
             <TextInput
               style={styles.input}
-              placeholder="مثال: محمد بن علي"
+              placeholder={role === "citizen" ? "مثال: محمد بن علي" : "مثال: مصلحة المياه والتحلية"}
               placeholderTextColor={colors.muted}
               value={fullName}
               onChangeText={setFullName}
@@ -88,7 +129,7 @@ export function RegisterScreen() {
         </View>
 
         <View style={styles.inputWrapper}>
-          <Text style={styles.label}>اسم المستخدم (بالأحرف اللاتينية)</Text>
+          <Text style={styles.label}>اسم المستخدم (Username {role === "department" ? "إلزامي" : "اختياري"})</Text>
           <View style={styles.inputContainer}>
             <Ionicons name="at" size={18} color={username.length > 2 ? colors.primary : colors.muted} style={styles.inputIcon} />
             <TextInput
@@ -104,7 +145,7 @@ export function RegisterScreen() {
         </View>
 
         <View style={styles.inputWrapper}>
-          <Text style={styles.label}>رقم الجوال (للتواصل وتتبع البلاغات)</Text>
+          <Text style={styles.label}>{role === "citizen" ? "رقم الجوال الشخصي" : "رقم هاتف التواصل الرسمي"}</Text>
           <View style={styles.inputContainer}>
             <Ionicons name="call-outline" size={18} color={phone.length === 10 ? colors.primary : colors.muted} style={styles.inputIcon} />
             <TextInput
@@ -279,6 +320,35 @@ const styles = StyleSheet.create({
     color: colors.textSecondary, 
     fontWeight: "600", 
     fontSize: 14 
+  },
+  roleToggleContainer: {
+    flexDirection: "row-reverse",
+    backgroundColor: "#F1F5F9",
+    borderRadius: radius.md,
+    padding: 6,
+    marginBottom: spacing.xl,
+    gap: 8,
+  },
+  roleTab: {
+    flex: 1,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: radius.sm,
+    gap: 8,
+  },
+  activeRoleTab: {
+    backgroundColor: colors.primary,
+    ...shadows.sm,
+  },
+  roleTabText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.muted,
+  },
+  activeRoleTabText: {
+    color: colors.white,
   },
   errorContainer: {
     backgroundColor: "#fef2f2",
