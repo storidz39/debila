@@ -150,9 +150,10 @@ export async function createDepartmentApi(payload: any): Promise<void> {
     },
     body: JSON.stringify(payload),
   });
+  
   if (!res.ok) {
-    const json = await res.json();
-    throw new Error(json.message || "فشل إنشاء الهيئة");
+    const json = await res.json().catch(() => ({}));
+    throw new Error(`Cloud Error (${res.status}): ${json.message || "Unknown error"}`);
   }
 }
 

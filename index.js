@@ -220,11 +220,13 @@ app.post('/api/admin/departments', authenticateToken, async (req, res) => {
       INSERT INTO users (phone, password, full_name, username, email, role, organization, logo_uri, cover_uri) 
       VALUES (?, ?, ?, ?, ?, 'department', ?, ?, ?)
     `;
+    // We use a prefix to ensure department 'phones' never conflict with citizen phones
+    const uniquePhone = `DEPT_${username.trim()}`;
     const params = [
-      phone || username, 
+      uniquePhone, 
       password, 
       full_name || organization, 
-      username, 
+      username.trim(), 
       null, // email
       organization, 
       logo_uri || null, 
