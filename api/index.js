@@ -43,22 +43,78 @@ app.get('/api/setup-db', async (req, res) => {
 
 // --- Authentication ---
 app.post('/api/auth/register', async (req, res) => {
-  const { phone, password, full_name, username, email, role } = req.body;
+  const { phone, password, full_name, username, email, role, organization, cover_uri } = req.body;
   try {
     const [rows] = await pool.execute(
-      'INSERT INTO users (phone, password, full_name, username, email, role) VALUES (?, ?, ?, ?, ?, ?)',
-      [phone.trim(), password, full_name.trim(), username?.trim() || null, email?.trim() || null, role || 'citizen']
+      'INSERT INTO users (phone, password, full_name, username, email, role, organization, cover_uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        phone.trim(), 
+        password, 
+        full_name.trim(), 
+        username?.trim() || null, 
+        email?.trim() || null, 
+        role || 'citizen',
+        organization || null,
+        cover_uri || null
+      ]
     );
     const userId = rows.insertId;
     const token = jwt.sign({ id: userId, phone, role: role || 'citizen' }, JWT_SECRET);
     res.status(201).json({
       success: true,
       access_token: token,
-      user: { id: userId, phone, full_name, username, role: role || 'citizen' }
+      user: { id: userId, phone, full_name, username, role: role || 'citizen', organization }
     });
   } catch (error) {
     console.error(error);
-    res.status(400).json({ success: false, message: 'خطأ في التسجيل: ' + error.message });
+    res.status(400).json({ success: false, message: 'خطأ في عملية الإنشاء: ' + error.message });
+  }
+});
+
+// --- Admin Endpoints ---
+app.get('/api/admin/departments', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      "SELECT id, full_name as name, username, role, organization, cover_uri FROM users WHERE role = 'department'"
+    );
+    res.json({ success: true, data: { items: rows } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.patch('/api/admin/departments/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, username, password, organization, cover_uri } = req.body;
+  try {
+    let query = 'UPDATE users SET full_name = ?, username = ?, organization = ?, cover_uri = ?';
+    let params = [name, username, organization, cover_uri];
+    
+    if (password) {
+      query += ', password = ?';
+      params.push(password);
+    }
+    
+    query += ' WHERE id = ? AND role = "department"';
+    params.push(id);
+    
+    await pool.execute(query, params);
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/admin/departments/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.execute('DELETE FROM users WHERE id = ? AND role = "department"', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
